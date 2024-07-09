@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "952626169780",
+    "project_id": "locationssaver-ca28a",
+    "storage_bucket": "locationssaver-ca28a.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:952626169780:android:6bf31d491eae88c199d4e1",
+        "android_client_info": {
+          "package_name": "com.example.location_saver"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCpAGAQStE3k8K-wvrY0uoUxB0qYIsIkkw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
