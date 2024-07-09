@@ -1,5 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthPage extends StatefulWidget {
   const AuthPage({super.key});
@@ -14,6 +16,7 @@ class _AuthPageState extends State<AuthPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _auth = FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   void _toggleView() {
     setState(() {
@@ -49,13 +52,43 @@ class _AuthPageState extends State<AuthPage> {
     }
   }
 
+  Future<void> _signInWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return;
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+      final OAuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final UserCredential userCredential =
+          await _auth.signInWithCredential(credential);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(
+                'Signed in with Google: ${userCredential.user!.displayName}')),
+      );
+    } catch (e) {
+      print('Error signing in with Google: ${e.toString()}');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Error signing in with Google: ${e.toString()}')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: Center(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(30.0),
             child: Form(
               key: _formKey,
               child: Column(
@@ -63,64 +96,154 @@ class _AuthPageState extends State<AuthPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
                   Text(
-                    _isLogin ? 'Welcome Back' : 'Create Account',
+                    _isLogin ? 'Welcome \nBack' : 'Create \nAccount',
                     style: const TextStyle(
                         fontSize: 32, fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
+                    textAlign: TextAlign.left,
                   ),
-                  const SizedBox(height: 48),
-                  TextFormField(
+                  const SizedBox(height: 30),
+                  MyTextField(
+                    hintText: 'Email',
+                    icon: const Icon(Icons.email_rounded),
+                    type: TextInputType.emailAddress,
+                    errorText: 'Please enter your Email',
                     controller: _emailController,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.email),
-                    ),
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your email';
-                      }
-                      return null;
-                    },
                   ),
                   const SizedBox(height: 16),
-                  TextFormField(
+                  MyTextField(
+                    hintText: 'Password',
+                    icon: const Icon(Icons.lock_rounded),
+                    type: TextInputType.visiblePassword,
+                    errorText: 'Please enter your Password',
                     controller: _passwordController,
-                    decoration: const InputDecoration(
-                      labelText: 'Password',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.lock),
-                    ),
-                    obscureText: true,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your password';
-                      }
-                      return null;
-                    },
                   ),
                   const SizedBox(height: 24),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                  GestureDetector(
+                    onTap: _submitForm,
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                          color: const Color(0xFF2496ff),
+                          borderRadius: BorderRadius.circular(10)),
+                      child: Text(
+                        _isLogin ? 'Login' : 'Sign Up',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
                     ),
-                    onPressed: _submitForm,
-                    child: Text(_isLogin ? 'Login' : 'Sign Up'),
                   ),
                   const SizedBox(height: 16),
-                  TextButton(
-                    onPressed: _toggleView,
-                    child: Text(_isLogin
-                        ? 'Need an account? Sign up'
-                        : 'Have an account? Log in'),
+                  GestureDetector(
+                    onTap: _signInWithGoogle,
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            width: 2,
+                            color: const Color(0xFF2496ff),
+                          )),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            FontAwesomeIcons.google,
+                            size: 16,
+                            color: Color(0xFF2496ff),
+                          ),
+                          SizedBox(width: 10),
+                          Text(
+                            'Sign in with Google',
+                            style: TextStyle(
+                              color: Color(0xFF2496ff),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
+                  TextButton(
+                    style: ElevatedButton.styleFrom(
+                      splashFactory: NoSplash.splashFactory,
+                    ),
+                    onPressed: _toggleView,
+                    child: RichText(
+                      text: TextSpan(
+                        children: [
+                          TextSpan(
+                            text: _isLogin
+                                ? 'Need an account? '
+                                : 'Have an account? ',
+                            style: const TextStyle(
+                                color: Colors.grey,
+                                fontWeight: FontWeight.bold),
+                          ),
+                          TextSpan(
+                            text: _isLogin ? 'Sign up' : 'Log in',
+                            style: const TextStyle(
+                              color: Color(0xFF2496ff),
+                              fontWeight: FontWeight.bold,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class MyTextField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hintText;
+  final Icon icon;
+  final TextInputType type;
+  final String errorText;
+
+  const MyTextField({
+    Key? key,
+    required this.controller,
+    required this.hintText,
+    required this.icon,
+    required this.type,
+    required this.errorText,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(
+        hintText: hintText,
+        hintStyle: const TextStyle(color: Colors.grey), // Hint text color
+        filled: true, // To make the background filled
+        fillColor: const Color(0xFFf0f5fe), // Background color
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10.0), // Rounded corners
+          borderSide: BorderSide.none, // No border
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+            vertical: 20.0, horizontal: 20.0), // Padding inside the field
+        prefixIcon: icon, // Icon inside the field
+      ),
+      keyboardType: type,
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return errorText;
+        }
+        return null;
+      },
     );
   }
 }
