@@ -1,8 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_place/google_place.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:location_saver/pages/authPage.dart';
 
 class AddLocationPage extends StatefulWidget {
@@ -25,7 +27,6 @@ class _AddLocationPageState extends State<AddLocationPage> {
   late LatLng _currentCameraPosition;
   bool _isLoading = true;
 
-  // You need to replace this with your actual API key
   final String apiKey = 'AIzaSyC3EnwU_NsCmWwPavSy7hnk-PYE_zdQ0hY';
 
   @override
@@ -37,6 +38,7 @@ class _AddLocationPageState extends State<AddLocationPage> {
 
   void _onMapCreated(GoogleMapController controller) {
     mapController = controller;
+    _loadUserMarkers();
   }
 
   Future<void> _checkLocationPermission() async {
@@ -94,7 +96,13 @@ class _AddLocationPageState extends State<AddLocationPage> {
     }
   }
 
-  void _addMarker() async {
+  Future<void> _addMarker() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _showErrorDialog('User not signed in.');
+      return;
+    }
+
     setState(() {
       markers.add(
         Marker(
@@ -108,6 +116,53 @@ class _AddLocationPageState extends State<AddLocationPage> {
         ),
       );
     });
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('markers')
+          .add({
+        'position': GeoPoint(
+            _currentCameraPosition.latitude, _currentCameraPosition.longitude),
+      });
+    } catch (e) {
+      print('Error adding marker to Firestore: $e');
+    }
+  }
+
+  Future<void> _loadUserMarkers() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _showErrorDialog('User not signed in.');
+      return;
+    }
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('markers')
+          .get();
+      final userMarkers = snapshot.docs.map((doc) {
+        final data = doc.data();
+        final geoPoint = data['position'] as GeoPoint;
+        return Marker(
+          markerId: MarkerId(doc.id),
+          position: LatLng(geoPoint.latitude, geoPoint.longitude),
+          infoWindow: InfoWindow(
+            title: 'Saved Location',
+            snippet: '${geoPoint.latitude}, ${geoPoint.longitude}',
+          ),
+        );
+      }).toSet();
+
+      setState(() {
+        markers.addAll(userMarkers);
+      });
+    } catch (e) {
+      print('Error loading markers from Firestore: $e');
+    }
   }
 
   void _autocomplete(String input) async {
@@ -143,7 +198,7 @@ class _AddLocationPageState extends State<AddLocationPage> {
 
   void _showErrorDialog(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Location is disabled')),
+      SnackBar(content: Text(message)),
     );
   }
 
@@ -165,15 +220,6 @@ class _AddLocationPageState extends State<AddLocationPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Add Location'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _signOut,
-          ),
-        ],
-      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Stack(
@@ -183,7 +229,7 @@ class _AddLocationPageState extends State<AddLocationPage> {
                   initialCameraPosition: initialCameraPosition,
                   markers: markers,
                   myLocationEnabled: true,
-                  myLocationButtonEnabled: true,
+                  myLocationButtonEnabled: false,
                   onCameraMove: (CameraPosition position) {
                     _currentCameraPosition = position.target;
                   },
@@ -192,44 +238,74 @@ class _AddLocationPageState extends State<AddLocationPage> {
                   top: 40,
                   left: 20,
                   right: 20,
-                  child: Container(
-                    color: Colors.white,
-                    child: const Column(
-                      children: [
-                        /*TextField(
-                          controller: _searchController,
-                          decoration: const InputDecoration(
-                            hintText: 'Search for a place',
-                            suffixIcon: Icon(Icons.search),
-                          ),
-                          onChanged: _autocomplete,
-                        ),
-                        if (_predictions.isNotEmpty)
-                          SizedBox(
-                            height: 200,
-                            child: ListView.builder(
-                              itemCount: _predictions.length,
-                              itemBuilder: (context, index) {
-                                return ListTile(
-                                  title: Text(_predictions[index].description!),
-                                  onTap: () =>
-                                      _selectPlace(_predictions[index]),
-                                );
-                              },
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _searchController,
+                              decoration: InputDecoration(
+                                hintText: "search a place",
+                                hintStyle: const TextStyle(
+                                    color: Colors.grey), // Hint text color
+                                filled: true, // To make the background filled
+                                fillColor:
+                                    const Color(0xFFf0f5fe), // Background color
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(
+                                      10.0), // Rounded corners
+                                  borderSide: BorderSide.none, // No border
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    vertical: 20.0,
+                                    horizontal:
+                                        20.0), // Padding inside the field
+                                prefixIcon: const Icon(
+                                    Icons.place), // Icon inside the field
+                              ),
+                              onChanged: _autocomplete,
                             ),
-                          ),*/
-                      ],
-                    ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.all(5),
+                            margin: const EdgeInsets.all(5),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              color: const Color(0xFFf0f5fe),
+                            ),
+                            child: IconButton(
+                              color: Colors.grey,
+                              icon: const Icon(Icons.logout),
+                              onPressed: _signOut,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_predictions.isNotEmpty)
+                        SizedBox(
+                          height: 200,
+                          child: ListView.builder(
+                            itemCount: _predictions.length,
+                            itemBuilder: (context, index) {
+                              return ListTile(
+                                title: Text(_predictions[index].description!),
+                                onTap: () => _selectPlace(_predictions[index]),
+                              );
+                            },
+                          ),
+                        ),
+                    ],
                   ),
                 ),
                 const Center(
-                  child: Icon(Icons.add_location, color: Colors.red),
+                  child: Icon(Icons.place, color: Colors.red),
                 ),
               ],
             ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addMarker,
-        child: const Icon(Icons.add_location),
+        child: const Icon(Icons.place),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );

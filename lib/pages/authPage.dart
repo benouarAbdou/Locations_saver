@@ -89,23 +89,6 @@ class _AuthPageState extends State<AuthPage> {
     }
   }
 
-  void _checkCurrentUser() {
-    FirebaseAuth.instance.authStateChanges().listen((User? user) {
-      if (user != null) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const AddLocationPage()),
-        );
-      }
-    });
-  }
-
-  @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-    _checkCurrentUser();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(

@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:location_saver/pages/addLocation.dart';
 import 'package:location_saver/pages/authPage.dart';
 
 void main() async {
@@ -12,12 +13,11 @@ void main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Locations saver',
+      title: 'Locations Saver',
       theme: ThemeData(
         useMaterial3: false,
       ),
@@ -34,8 +34,30 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  bool _isLogged = false;
+
+  void _checkCurrentUser() {
+    FirebaseAuth.instance.authStateChanges().listen((User? user) {
+      if (user != null) {
+        setState(() {
+          _isLogged = true;
+        });
+      } else {
+        setState(() {
+          _isLogged = false;
+        });
+      }
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _checkCurrentUser();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return const AuthPage();
+    return _isLogged ? const AddLocationPage() : const AuthPage();
   }
 }
