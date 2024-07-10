@@ -28,6 +28,7 @@ class LocationProvider extends ChangeNotifier {
           'name': data['name'] ?? 'Unnamed Location',
           'latitude': geoPoint.latitude,
           'longitude': geoPoint.longitude,
+          'category': data['category'] ?? 'other',
         };
       }).toList();
 
@@ -38,8 +39,8 @@ class LocationProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> addLocation(double latitude, double longitude,
-      [String? name]) async {
+  Future<void> addLocation(
+      double latitude, double longitude, String name, String category) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       // Handle the case where the user is not signed in
@@ -53,14 +54,16 @@ class LocationProvider extends ChangeNotifier {
           .collection('markers')
           .add({
         'position': GeoPoint(latitude, longitude),
-        'name': name ?? 'Unnamed Location',
+        'name': name,
+        'category': category,
       });
 
       _locations.add({
         'id': docRef.id,
-        'name': name ?? 'Unnamed Location',
+        'name': name,
         'latitude': latitude,
         'longitude': longitude,
+        'category': category,
       });
 
       notifyListeners();
