@@ -1,8 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:location_saver/pages/addLocation.dart';
 import 'package:location_saver/pages/authPage.dart';
+import 'package:location_saver/pages/mainpage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,6 +20,7 @@ class MyApp extends StatelessWidget {
       title: 'Locations Saver',
       theme: ThemeData(
         useMaterial3: false,
+        fontFamily: 'Folks',
       ),
       home: const MyHomePage(),
     );
@@ -58,6 +59,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return _isLogged ? const AddLocationPage() : const AuthPage();
+    return _isLogged ? const MainPage() : const AuthPage();
   }
 }

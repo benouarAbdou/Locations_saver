@@ -6,6 +6,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_place/google_place.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:location_saver/pages/authPage.dart';
+import 'package:location_saver/provider/locationsProvider.dart';
+import 'package:provider/provider.dart';
 
 class AddLocationPage extends StatefulWidget {
   const AddLocationPage({Key? key}) : super(key: key);
@@ -118,16 +120,13 @@ class _AddLocationPageState extends State<AddLocationPage> {
     });
 
     try {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('markers')
-          .add({
-        'position': GeoPoint(
-            _currentCameraPosition.latitude, _currentCameraPosition.longitude),
-      });
+      await Provider.of<LocationProvider>(context, listen: false).addLocation(
+        _currentCameraPosition.latitude,
+        _currentCameraPosition.longitude,
+      );
     } catch (e) {
-      print('Error adding marker to Firestore: $e');
+      print('Error adding marker: $e');
+      _showErrorDialog('Failed to add marker.');
     }
   }
 
