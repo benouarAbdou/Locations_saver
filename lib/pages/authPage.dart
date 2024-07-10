@@ -2,6 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:location_saver/components/myTextField.dart';
+import 'package:location_saver/pages/addLocation.dart';
 
 class AuthPage extends StatefulWidget {
   const AuthPage({super.key});
@@ -44,6 +46,9 @@ class _AuthPageState extends State<AuthPage> {
                   ? 'Logged in successfully'
                   : 'Signed up successfully')),
         );
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const AddLocationPage()),
+        );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: ${e.toString()}')),
@@ -72,6 +77,9 @@ class _AuthPageState extends State<AuthPage> {
             content: Text(
                 'Signed in with Google: ${userCredential.user!.displayName}')),
       );
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const AddLocationPage()),
+      );
     } catch (e) {
       print('Error signing in with Google: ${e.toString()}');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -79,6 +87,23 @@ class _AuthPageState extends State<AuthPage> {
             content: Text('Error signing in with Google: ${e.toString()}')),
       );
     }
+  }
+
+  void _checkCurrentUser() {
+    FirebaseAuth.instance.authStateChanges().listen((User? user) {
+      if (user != null) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const AddLocationPage()),
+        );
+      }
+    });
+  }
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    _checkCurrentUser();
   }
 
   @override
@@ -200,50 +225,6 @@ class _AuthPageState extends State<AuthPage> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class MyTextField extends StatelessWidget {
-  final TextEditingController controller;
-  final String hintText;
-  final Icon icon;
-  final TextInputType type;
-  final String errorText;
-
-  const MyTextField({
-    Key? key,
-    required this.controller,
-    required this.hintText,
-    required this.icon,
-    required this.type,
-    required this.errorText,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      controller: controller,
-      decoration: InputDecoration(
-        hintText: hintText,
-        hintStyle: const TextStyle(color: Colors.grey), // Hint text color
-        filled: true, // To make the background filled
-        fillColor: const Color(0xFFf0f5fe), // Background color
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10.0), // Rounded corners
-          borderSide: BorderSide.none, // No border
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-            vertical: 20.0, horizontal: 20.0), // Padding inside the field
-        prefixIcon: icon, // Icon inside the field
-      ),
-      keyboardType: type,
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return errorText;
-        }
-        return null;
-      },
     );
   }
 }
