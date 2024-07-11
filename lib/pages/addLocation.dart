@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,6 +13,7 @@ import 'package:location_saver/pages/authPage.dart';
 import 'package:location_saver/provider/locationsProvider.dart';
 import 'package:provider/provider.dart';
 import 'dart:ui' as ui;
+import 'package:http/http.dart' as http;
 
 class AddLocationPage extends StatefulWidget {
   const AddLocationPage({Key? key}) : super(key: key);
@@ -29,14 +33,70 @@ class _AddLocationPageState extends State<AddLocationPage> {
   );
   late LatLng _currentCameraPosition;
   bool _isLoading = true;
-
-  final String apiKey = 'AIzaSyC3EnwU_NsCmWwPavSy7hnk-PYE_zdQ0hY';
+  List<Map<String, dynamic>> _placesList = [];
+  Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
-    googlePlace = GooglePlace(apiKey);
     _checkLocationPermission();
+  }
+
+  Future<void> _searchPlaces(String query) async {
+    if (query.isEmpty) {
+      setState(() {
+        _placesList = [];
+      });
+      return;
+    }
+
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 2000), () async {
+      try {
+        final response = await http.get(
+          Uri.parse(
+              'https://nominatim.openstreetmap.org/search?format=json&q=$query'),
+          headers: {
+            'User-Agent':
+                'locationsSaver/1.0', // Replace with your app name and version
+          },
+        );
+
+        if (response.statusCode == 200) {
+          final List<dynamic> places = json.decode(response.body);
+          setState(() {
+            _placesList =
+                places.map((place) => place as Map<String, dynamic>).toList();
+          });
+        } else {
+          _showErrorDialog(
+              'Failed to fetch place suggestions. Status: ${response.statusCode}');
+        }
+      } catch (e) {
+        _showErrorDialog('Error fetching place suggestions: $e');
+      }
+    });
+  }
+
+  void _selectPlace(Map<String, dynamic> place) {
+    final lat = double.parse(place['lat']);
+    final lon = double.parse(place['lon']);
+    mapController
+        .animateCamera(CameraUpdate.newLatLngZoom(LatLng(lat, lon), 15));
+    setState(() {
+      _searchController.text = place['display_name'];
+      _placesList = [];
+    });
+  }
+
+  void _handleSearch() {
+    final input = _searchController.text;
+    final coordinates = input.split(',');
+    if (coordinates.length == 2) {
+      _goToCoordinates();
+    } else {
+      _searchPlaces(input);
+    }
   }
 
   void _onMapCreated(GoogleMapController controller) {
@@ -381,49 +441,84 @@ class _AddLocationPageState extends State<AddLocationPage> {
                     _currentCameraPosition = position.target;
                   },
                 ),
+                const Center(
+                  child: Icon(Icons.place, color: Colors.red),
+                ),
                 Positioned(
                   top: 40,
                   left: 20,
                   right: 20,
-                  child: Row(
+                  child: Column(
                     children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _searchController,
-                          decoration: InputDecoration(
-                            hintText: "Enter coordinates (lat,lng)",
-                            hintStyle: const TextStyle(color: Colors.grey),
-                            filled: true,
-                            fillColor: const Color(0xFFf0f5fe),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10.0),
-                              borderSide: BorderSide.none,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _searchController,
+                              decoration: InputDecoration(
+                                hintText: "Search place or enter coordinates",
+                                hintStyle: const TextStyle(color: Colors.grey),
+                                filled: true,
+                                fillColor: const Color(0xFFf0f5fe),
+                                suffixIcon: GestureDetector(
+                                  onTap: () {
+                                    _searchController.clear();
+                                    setState(() {
+                                      _placesList.clear();
+                                    });
+                                  },
+                                  child: const Icon(Icons.clear),
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10.0),
+                                  borderSide: BorderSide.none,
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    vertical: 20.0, horizontal: 20.0),
+                              ),
+                              onChanged: (value) => _searchPlaces(value),
+                              onSubmitted: (_) => _handleSearch(),
                             ),
-                            contentPadding: const EdgeInsets.symmetric(
-                                vertical: 20.0, horizontal: 20.0),
-                            prefixIcon: const Icon(Icons.place),
                           ),
-                          onSubmitted: (_) => _goToCoordinates(),
-                        ),
+                          const SizedBox(
+                            width: 5,
+                          ),
+                          Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              color: const Color(0xFFf0f5fe),
+                            ),
+                            child: IconButton(
+                              color: Colors.grey,
+                              icon: const Icon(Icons.search),
+                              onPressed: _handleSearch,
+                            ),
+                          ),
+                        ],
                       ),
-                      Container(
-                        padding: const EdgeInsets.all(5),
-                        margin: const EdgeInsets.all(5),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          color: const Color(0xFFf0f5fe),
+                      if (_placesList.isNotEmpty)
+                        Container(
+                          margin: const EdgeInsets.only(top: 5),
+                          decoration: BoxDecoration(
+                              color: const Color(0xFFf0f5fe),
+                              borderRadius: BorderRadius.circular(10)),
+                          child: ListView.builder(
+                            physics: const BouncingScrollPhysics(),
+                            padding: const EdgeInsets.all(0),
+                            shrinkWrap: true,
+                            itemCount: _placesList.length,
+                            itemBuilder: (context, index) {
+                              final place = _placesList[index];
+                              return ListTile(
+                                title: Text(place['display_name']),
+                                onTap: () => _selectPlace(place),
+                              );
+                            },
+                          ),
                         ),
-                        child: IconButton(
-                          color: Colors.grey,
-                          icon: const Icon(Icons.search),
-                          onPressed: _goToCoordinates,
-                        ),
-                      ),
                     ],
                   ),
-                ),
-                const Center(
-                  child: Icon(Icons.place, color: Colors.red),
                 ),
               ],
             ),
