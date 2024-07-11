@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:location_saver/components/categoryIcon.dart';
 import 'package:location_saver/provider/locationsProvider.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -132,6 +133,8 @@ class _LocationsListPageState extends State<LocationsListPage> {
                         final location = locations[index];
                         return ListTile(
                           title: Text(location['name']),
+                          leading: CategoryIcon(
+                              category: location['category'] ?? 'other'),
                           subtitle: Text(
                               '${location['latitude'].toStringAsFixed(4)}, ${location['longitude'].toStringAsFixed(4)}'),
                           onTap: () => _openInGoogleMaps(

@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_place/google_place.dart';
@@ -8,6 +9,7 @@ import 'package:location_saver/components/myTextField.dart';
 import 'package:location_saver/pages/authPage.dart';
 import 'package:location_saver/provider/locationsProvider.dart';
 import 'package:provider/provider.dart';
+import 'dart:ui' as ui;
 
 class AddLocationPage extends StatefulWidget {
   const AddLocationPage({Key? key}) : super(key: key);
@@ -210,12 +212,15 @@ class _AddLocationPageState extends State<AddLocationPage> {
       _showErrorDialog('Please enter a name.');
       return;
     }
+    BitmapDescriptor markerIcon =
+        await getMarkerIconForCategory(selectedType ?? 'other');
 
     setState(() {
       markers.add(
         Marker(
           markerId: MarkerId(_currentCameraPosition.toString()),
           position: _currentCameraPosition,
+          icon: markerIcon,
           infoWindow: InfoWindow(
             title: nameController.text,
             snippet:
@@ -238,6 +243,34 @@ class _AddLocationPageState extends State<AddLocationPage> {
     }
   }
 
+  Future<BitmapDescriptor> getMarkerIconForCategory(String category) async {
+    String assetName;
+    switch (category) {
+      case 'work':
+        assetName = 'assets/blueMarkerExtra.png';
+        break;
+      case 'food':
+        assetName = 'assets/goldMarker.png';
+        break;
+      case 'travel':
+        assetName = 'assets/greenMarker.png';
+        break;
+      case 'family':
+        assetName = 'assets/purpleMarker.png';
+        break;
+      case 'friends':
+        assetName = 'assets/redMarker.png';
+        break;
+      case 'other':
+      default:
+        assetName = 'assets/greyMarker.png';
+        break;
+    }
+
+    final Uint8List markerIcon = await getBytesFromAsset(assetName, 125);
+    return BitmapDescriptor.fromBytes(markerIcon);
+  }
+
   Future<void> _loadUserMarkers() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -251,25 +284,41 @@ class _AddLocationPageState extends State<AddLocationPage> {
           .doc(user.uid)
           .collection('markers')
           .get();
-      final userMarkers = snapshot.docs.map((doc) {
+
+      for (var doc in snapshot.docs) {
         final data = doc.data();
         final geoPoint = data['position'] as GeoPoint;
-        return Marker(
-          markerId: MarkerId(doc.id),
-          position: LatLng(geoPoint.latitude, geoPoint.longitude),
-          infoWindow: InfoWindow(
-            title: data['name'],
-            snippet: '${geoPoint.latitude}, ${geoPoint.longitude}',
-          ),
-        );
-      }).toSet();
+        final category = data['category'] as String? ?? 'other';
 
-      setState(() {
-        markers.addAll(userMarkers);
-      });
+        // Get the appropriate marker icon
+        BitmapDescriptor markerIcon = await getMarkerIconForCategory(category);
+
+        setState(() {
+          markers.add(Marker(
+            markerId: MarkerId(doc.id),
+            position: LatLng(geoPoint.latitude, geoPoint.longitude),
+            icon: markerIcon,
+            infoWindow: InfoWindow(
+              title: data['name'],
+              snippet:
+                  '${geoPoint.latitude.toStringAsFixed(2)}, ${geoPoint.longitude.toStringAsFixed(2)} - $category',
+            ),
+          ));
+        });
+      }
     } catch (e) {
       print('Error loading markers from Firestore: $e');
     }
+  }
+
+  Future<Uint8List> getBytesFromAsset(String path, int width) async {
+    ByteData data = await rootBundle.load(path);
+    ui.Codec codec = await ui.instantiateImageCodec(data.buffer.asUint8List(),
+        targetWidth: width);
+    ui.FrameInfo fi = await codec.getNextFrame();
+    return (await fi.image.toByteData(format: ui.ImageByteFormat.png))!
+        .buffer
+        .asUint8List();
   }
 
   void _showErrorDialog(String message) {
@@ -325,6 +374,8 @@ class _AddLocationPageState extends State<AddLocationPage> {
                   initialCameraPosition: initialCameraPosition,
                   markers: markers,
                   myLocationEnabled: true,
+                  compassEnabled: false,
+                  zoomControlsEnabled: false,
                   myLocationButtonEnabled: false,
                   onCameraMove: (CameraPosition position) {
                     _currentCameraPosition = position.target;
@@ -364,8 +415,8 @@ class _AddLocationPageState extends State<AddLocationPage> {
                         ),
                         child: IconButton(
                           color: Colors.grey,
-                          icon: const Icon(Icons.logout),
-                          onPressed: _signOut,
+                          icon: const Icon(Icons.search),
+                          onPressed: _goToCoordinates,
                         ),
                       ),
                     ],
