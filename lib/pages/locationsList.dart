@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:location_saver/components/categoryIcon.dart';
+import 'package:location_saver/components/myButton.dart';
+import 'package:location_saver/components/myTextField.dart';
 import 'package:location_saver/provider/locationsProvider.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -62,6 +64,115 @@ class _LocationsListPageState extends State<LocationsListPage> {
     }
   }
 
+  Future<void> _editLocation(Map<String, dynamic> location) async {
+    TextEditingController nameController =
+        TextEditingController(text: location['name']);
+    String? selectedType = location['category'];
+    List<String> types = [
+      'work',
+      'food',
+      'travel',
+      'family',
+      'friends',
+      'other'
+    ];
+    String nameError = "";
+
+    bool? result = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              contentPadding:
+                  const EdgeInsets.symmetric(vertical: 10, horizontal: 24),
+              actionsAlignment: MainAxisAlignment.center,
+              title: const Text('Edit Location Details'),
+              content: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  MyTextField(
+                    hintText: 'Location name',
+                    icon: const Icon(Icons.place),
+                    type: TextInputType.text,
+                    controller: nameController,
+                    errorText: 'enter the name',
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    value: selectedType,
+                    decoration: InputDecoration(
+                      hintText: "Select type",
+                      hintStyle: const TextStyle(color: Colors.grey),
+                      filled: true,
+                      fillColor: const Color(0xFFf0f5fe),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10.0),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          vertical: 20.0, horizontal: 20.0),
+                      prefixIcon: const Icon(Icons.category),
+                    ),
+                    hint: const Text('Select category'),
+                    items: types.map((String type) {
+                      return DropdownMenuItem<String>(
+                        value: type,
+                        child: Text(type),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedType = value;
+                      });
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                MyButton(
+                  hint: 'Update',
+                  function: () {
+                    if (nameController.text.isEmpty) {
+                      setState(() {
+                        nameError = 'Please enter a name';
+                      });
+                    } else {
+                      Navigator.of(context).pop(true);
+                    }
+                  },
+                ),
+                MyButton(
+                  hint: 'Cancel',
+                  function: () => Navigator.of(context).pop(false),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (result == true) {
+      try {
+        await Provider.of<LocationProvider>(context, listen: false)
+            .updateLocation(
+          location['id'],
+          nameController.text,
+          selectedType ?? 'other',
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Location updated successfully')),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error updating location: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -117,6 +228,18 @@ class _LocationsListPageState extends State<LocationsListPage> {
                                 foregroundColor: Colors.white,
                                 icon: Icons.delete,
                                 label: 'Delete',
+                              ),
+                            ],
+                          ),
+                          startActionPane: ActionPane(
+                            motion: const ScrollMotion(),
+                            children: [
+                              SlidableAction(
+                                onPressed: (context) => _editLocation(location),
+                                backgroundColor: Colors.blue,
+                                foregroundColor: Colors.white,
+                                icon: Icons.edit,
+                                label: 'Edit',
                               ),
                             ],
                           ),

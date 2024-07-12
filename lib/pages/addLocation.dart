@@ -8,6 +8,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_place/google_place.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:location_saver/components/myButton.dart';
 import 'package:location_saver/components/myTextField.dart';
 import 'package:location_saver/pages/authPage.dart';
 import 'package:location_saver/provider/locationsProvider.dart';
@@ -35,6 +36,8 @@ class _AddLocationPageState extends State<AddLocationPage> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _placesList = [];
   Timer? _debounce;
+
+  int changes = LocationProvider().getChanges();
 
   @override
   void initState() {
@@ -420,7 +423,9 @@ class _AddLocationPageState extends State<AddLocationPage> {
     return Scaffold(
       body: Consumer<LocationProvider>(
         builder: (context, locationProvider, child) {
-          if (locationProvider.locations.length != markers.length) {
+          if (locationProvider.locations.length != markers.length ||
+              changes != locationProvider.changes) {
+            changes = locationProvider.changes;
             WidgetsBinding.instance
                 .addPostFrameCallback((_) => _updateMarkers());
           }
@@ -526,30 +531,6 @@ class _AddLocationPageState extends State<AddLocationPage> {
         child: const Icon(Icons.place),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-    );
-  }
-}
-
-class MyButton extends StatelessWidget {
-  final String hint;
-  final Function function;
-  const MyButton({
-    super.key,
-    required this.hint,
-    required this.function,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton(
-      onPressed: () => function(),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF2496ff),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-      ),
-      child: Text(hint),
     );
   }
 }

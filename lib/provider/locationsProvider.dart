@@ -7,9 +7,14 @@ class LocationProvider extends ChangeNotifier {
   List<Map<String, dynamic>> get locations => _locations;
   bool _isLoading = false;
   bool get isLoading => _isLoading;
+  int changes = 0;
 
   LocationProvider() {
     loadLocations();
+  }
+
+  int getChanges() {
+    return changes;
   }
 
   Future<void> loadLocations() async {
@@ -81,6 +86,36 @@ class LocationProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       print('Error adding location: $e');
+    }
+  }
+
+  Future<void> updateLocation(String id, String name, String category) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return;
+    }
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('markers')
+          .doc(id)
+          .update({
+        'name': name,
+        'category': category,
+      });
+
+      final index = _locations.indexWhere((location) => location['id'] == id);
+      if (index != -1) {
+        _locations[index]['name'] = name;
+        _locations[index]['category'] = category;
+        notifyListeners();
+        changes++;
+      }
+    } catch (e) {
+      print('Error updating location: $e');
+      rethrow;
     }
   }
 
