@@ -5,6 +5,7 @@ import 'package:location_saver/components/categoryIcon.dart';
 import 'package:location_saver/provider/locationsProvider.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 
 class LocationsListPage extends StatefulWidget {
   const LocationsListPage({Key? key}) : super(key: key);
@@ -15,7 +16,6 @@ class LocationsListPage extends StatefulWidget {
 
 class _LocationsListPageState extends State<LocationsListPage> {
   final TextEditingController _searchController = TextEditingController();
-  List<Map<String, dynamic>> _locations = [];
   List<Map<String, dynamic>> _filteredLocations = [];
 
   @override
@@ -24,39 +24,6 @@ class _LocationsListPageState extends State<LocationsListPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<LocationProvider>(context, listen: false).loadLocations();
     });
-  }
-
-  Future<void> _loadLocations() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      // Handle the case where the user is not signed in
-      return;
-    }
-
-    try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('markers')
-          .get();
-
-      setState(() {
-        _locations = snapshot.docs.map((doc) {
-          final data = doc.data();
-          final geoPoint = data['position'] as GeoPoint;
-          return {
-            'id': doc.id,
-            'name': data['name'] ?? 'Unnamed Location',
-            'latitude': geoPoint.latitude,
-            'longitude': geoPoint.longitude,
-          };
-        }).toList();
-        _filteredLocations = List.from(_locations);
-      });
-    } catch (e) {
-      print('Error loading locations: $e');
-      // Handle the error (e.g., show a snackbar)
-    }
   }
 
   void _filterLocations(String query) {
@@ -75,9 +42,22 @@ class _LocationsListPageState extends State<LocationsListPage> {
     if (await canLaunch(url)) {
       await launch(url);
     } else {
-      // Handle the error (e.g., show a snackbar)
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not open the map')),
+      );
+    }
+  }
+
+  Future<void> _deleteLocation(String id) async {
+    try {
+      await Provider.of<LocationProvider>(context, listen: false)
+          .deleteLocation(id);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Location deleted successfully')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error deleting location: $e')),
       );
     }
   }
@@ -95,26 +75,21 @@ class _LocationsListPageState extends State<LocationsListPage> {
                 'Welcome to your saved locations!',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(
-                height: 10,
-              ),
+              const SizedBox(height: 10),
               TextField(
                 controller: _searchController,
                 decoration: InputDecoration(
                   hintText: "Search for a location",
-                  hintStyle:
-                      const TextStyle(color: Colors.grey), // Hint text color
-                  filled: true, // To make the background filled
-                  fillColor: const Color(0xFFf0f5fe), // Background color
+                  hintStyle: const TextStyle(color: Colors.grey),
+                  filled: true,
+                  fillColor: const Color(0xFFf0f5fe),
                   border: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(10.0), // Rounded corners
-                    borderSide: BorderSide.none, // No border
+                    borderRadius: BorderRadius.circular(10.0),
+                    borderSide: BorderSide.none,
                   ),
                   contentPadding: const EdgeInsets.symmetric(
-                      vertical: 20.0,
-                      horizontal: 20.0), // Padding inside the field
-                  prefixIcon: const Icon(Icons.place), // Icon inside the field
+                      vertical: 20.0, horizontal: 20.0),
+                  prefixIcon: const Icon(Icons.place),
                 ),
                 onChanged: _filterLocations,
               ),
@@ -131,14 +106,29 @@ class _LocationsListPageState extends State<LocationsListPage> {
                       itemCount: locations.length,
                       itemBuilder: (context, index) {
                         final location = locations[index];
-                        return ListTile(
-                          title: Text(location['name']),
-                          leading: CategoryIcon(
-                              category: location['category'] ?? 'other'),
-                          subtitle: Text(
-                              '${location['latitude'].toStringAsFixed(4)}, ${location['longitude'].toStringAsFixed(4)}'),
-                          onTap: () => _openInGoogleMaps(
-                              location['latitude'], location['longitude']),
+                        return Slidable(
+                          endActionPane: ActionPane(
+                            motion: const ScrollMotion(),
+                            children: [
+                              SlidableAction(
+                                onPressed: (context) =>
+                                    _deleteLocation(location['id']),
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                                icon: Icons.delete,
+                                label: 'Delete',
+                              ),
+                            ],
+                          ),
+                          child: ListTile(
+                            title: Text(location['name']),
+                            leading: CategoryIcon(
+                                category: location['category'] ?? 'other'),
+                            subtitle: Text(
+                                '${location['latitude'].toStringAsFixed(4)}, ${location['longitude'].toStringAsFixed(4)}'),
+                            onTap: () => _openInGoogleMaps(
+                                location['latitude'], location['longitude']),
+                          ),
                         );
                       },
                     );

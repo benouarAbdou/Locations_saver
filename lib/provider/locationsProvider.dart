@@ -5,11 +5,22 @@ import 'package:firebase_auth/firebase_auth.dart';
 class LocationProvider extends ChangeNotifier {
   List<Map<String, dynamic>> _locations = [];
   List<Map<String, dynamic>> get locations => _locations;
+  bool _isLoading = false;
+  bool get isLoading => _isLoading;
+
+  LocationProvider() {
+    loadLocations();
+  }
 
   Future<void> loadLocations() async {
+    if (_isLoading) return;
+    _isLoading = true;
+    notifyListeners();
+
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      // Handle the case where the user is not signed in
+      _isLoading = false;
+      notifyListeners();
       return;
     }
 
@@ -32,10 +43,12 @@ class LocationProvider extends ChangeNotifier {
         };
       }).toList();
 
+      _isLoading = false;
       notifyListeners();
     } catch (e) {
       print('Error loading locations: $e');
-      // Handle the error (e.g., show a snackbar)
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
@@ -43,7 +56,6 @@ class LocationProvider extends ChangeNotifier {
       double latitude, double longitude, String name, String category) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      // Handle the case where the user is not signed in
       return;
     }
 
@@ -69,7 +81,28 @@ class LocationProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       print('Error adding location: $e');
-      // Handle the error (e.g., show a snackbar)
+    }
+  }
+
+  Future<void> deleteLocation(String id) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return;
+    }
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('markers')
+          .doc(id)
+          .delete();
+
+      _locations.removeWhere((location) => location['id'] == id);
+      notifyListeners();
+    } catch (e) {
+      print('Error deleting location: $e');
+      rethrow;
     }
   }
 }

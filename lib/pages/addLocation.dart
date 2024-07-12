@@ -275,7 +275,7 @@ class _AddLocationPageState extends State<AddLocationPage> {
     BitmapDescriptor markerIcon =
         await getMarkerIconForCategory(selectedType ?? 'other');
 
-    setState(() {
+    /*setState(() {
       markers.add(
         Marker(
           markerId: MarkerId(_currentCameraPosition.toString()),
@@ -288,7 +288,7 @@ class _AddLocationPageState extends State<AddLocationPage> {
           ),
         ),
       );
-    });
+    });*/
 
     try {
       await Provider.of<LocationProvider>(context, listen: false).addLocation(
@@ -332,43 +332,36 @@ class _AddLocationPageState extends State<AddLocationPage> {
   }
 
   Future<void> _loadUserMarkers() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      _showErrorDialog('User not signed in.');
-      return;
+    final locationProvider =
+        Provider.of<LocationProvider>(context, listen: false);
+    await locationProvider.loadLocations();
+    _updateMarkers();
+  }
+
+  Future<void> _updateMarkers() async {
+    final locations =
+        Provider.of<LocationProvider>(context, listen: false).locations;
+    final Set<Marker> newMarkers = {};
+
+    for (var location in locations) {
+      final BitmapDescriptor markerIcon =
+          await getMarkerIconForCategory(location['category']);
+      newMarkers.add(Marker(
+        markerId: MarkerId(location['id']),
+        position: LatLng(location['latitude'], location['longitude']),
+        icon: markerIcon,
+        infoWindow: InfoWindow(
+          title: location['name'],
+          snippet:
+              '${location['latitude'].toStringAsFixed(2)}, ${location['longitude'].toStringAsFixed(2)} - ${location['category']}',
+        ),
+      ));
     }
 
-    try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('markers')
-          .get();
-
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        final geoPoint = data['position'] as GeoPoint;
-        final category = data['category'] as String? ?? 'other';
-
-        // Get the appropriate marker icon
-        BitmapDescriptor markerIcon = await getMarkerIconForCategory(category);
-
-        setState(() {
-          markers.add(Marker(
-            markerId: MarkerId(doc.id),
-            position: LatLng(geoPoint.latitude, geoPoint.longitude),
-            icon: markerIcon,
-            infoWindow: InfoWindow(
-              title: data['name'],
-              snippet:
-                  '${geoPoint.latitude.toStringAsFixed(2)}, ${geoPoint.longitude.toStringAsFixed(2)} - $category',
-            ),
-          ));
-        });
-      }
-    } catch (e) {
-      print('Error loading markers from Firestore: $e');
-    }
+    setState(() {
+      markers.clear();
+      markers.addAll(newMarkers);
+    });
   }
 
   Future<Uint8List> getBytesFromAsset(String path, int width) async {
@@ -425,103 +418,109 @@ class _AddLocationPageState extends State<AddLocationPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Stack(
-              children: [
-                GoogleMap(
-                  onMapCreated: _onMapCreated,
-                  initialCameraPosition: initialCameraPosition,
-                  markers: markers,
-                  myLocationEnabled: true,
-                  compassEnabled: false,
-                  zoomControlsEnabled: false,
-                  myLocationButtonEnabled: false,
-                  onCameraMove: (CameraPosition position) {
-                    _currentCameraPosition = position.target;
-                  },
-                ),
-                const Center(
-                  child: Icon(Icons.place, color: Colors.red),
-                ),
-                Positioned(
-                  top: 40,
-                  left: 20,
-                  right: 20,
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _searchController,
-                              decoration: InputDecoration(
-                                hintText: "Search place or enter coordinates",
-                                hintStyle: const TextStyle(color: Colors.grey),
-                                filled: true,
-                                fillColor: const Color(0xFFf0f5fe),
-                                suffixIcon: GestureDetector(
-                                  onTap: () {
-                                    _searchController.clear();
-                                    setState(() {
-                                      _placesList.clear();
-                                    });
-                                  },
-                                  child: const Icon(Icons.clear),
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10.0),
-                                  borderSide: BorderSide.none,
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                    vertical: 20.0, horizontal: 20.0),
+      body: Consumer<LocationProvider>(
+        builder: (context, locationProvider, child) {
+          if (locationProvider.locations.length != markers.length) {
+            WidgetsBinding.instance
+                .addPostFrameCallback((_) => _updateMarkers());
+          }
+          return Stack(
+            children: [
+              GoogleMap(
+                onMapCreated: _onMapCreated,
+                initialCameraPosition: initialCameraPosition,
+                markers: markers,
+                myLocationEnabled: true,
+                compassEnabled: false,
+                zoomControlsEnabled: false,
+                myLocationButtonEnabled: false,
+                onCameraMove: (CameraPosition position) {
+                  _currentCameraPosition = position.target;
+                },
+              ),
+              const Center(
+                child: Icon(Icons.place, color: Colors.red),
+              ),
+              Positioned(
+                top: 40,
+                left: 20,
+                right: 20,
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _searchController,
+                            decoration: InputDecoration(
+                              hintText: "Search place or enter coordinates",
+                              hintStyle: const TextStyle(color: Colors.grey),
+                              filled: true,
+                              fillColor: const Color(0xFFf0f5fe),
+                              suffixIcon: GestureDetector(
+                                onTap: () {
+                                  _searchController.clear();
+                                  setState(() {
+                                    _placesList.clear();
+                                  });
+                                },
+                                child: const Icon(Icons.clear),
                               ),
-                              onChanged: (value) => _searchPlaces(value),
-                              onSubmitted: (_) => _handleSearch(),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10.0),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  vertical: 20.0, horizontal: 20.0),
                             ),
-                          ),
-                          const SizedBox(
-                            width: 5,
-                          ),
-                          Container(
-                            padding: const EdgeInsets.all(5),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(10),
-                              color: const Color(0xFFf0f5fe),
-                            ),
-                            child: IconButton(
-                              color: Colors.grey,
-                              icon: const Icon(Icons.search),
-                              onPressed: _handleSearch,
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (_placesList.isNotEmpty)
-                        Container(
-                          margin: const EdgeInsets.only(top: 5),
-                          decoration: BoxDecoration(
-                              color: const Color(0xFFf0f5fe),
-                              borderRadius: BorderRadius.circular(10)),
-                          child: ListView.builder(
-                            physics: const BouncingScrollPhysics(),
-                            padding: const EdgeInsets.all(0),
-                            shrinkWrap: true,
-                            itemCount: _placesList.length,
-                            itemBuilder: (context, index) {
-                              final place = _placesList[index];
-                              return ListTile(
-                                title: Text(place['display_name']),
-                                onTap: () => _selectPlace(place),
-                              );
-                            },
+                            onChanged: (value) => _searchPlaces(value),
+                            onSubmitted: (_) => _handleSearch(),
                           ),
                         ),
-                    ],
-                  ),
+                        const SizedBox(
+                          width: 5,
+                        ),
+                        Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            color: const Color(0xFFf0f5fe),
+                          ),
+                          child: IconButton(
+                            color: Colors.grey,
+                            icon: const Icon(Icons.search),
+                            onPressed: _handleSearch,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_placesList.isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.only(top: 5),
+                        decoration: BoxDecoration(
+                            color: const Color(0xFFf0f5fe),
+                            borderRadius: BorderRadius.circular(10)),
+                        child: ListView.builder(
+                          physics: const BouncingScrollPhysics(),
+                          padding: const EdgeInsets.all(0),
+                          shrinkWrap: true,
+                          itemCount: _placesList.length,
+                          itemBuilder: (context, index) {
+                            final place = _placesList[index];
+                            return ListTile(
+                              title: Text(place['display_name']),
+                              onTap: () => _selectPlace(place),
+                            );
+                          },
+                        ),
+                      ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
+          );
+        },
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addMarker,
         child: const Icon(Icons.place),
