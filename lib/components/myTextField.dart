@@ -4,6 +4,7 @@ class MyTextField extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
   final Icon icon;
+  final bool obscure;
   final TextInputType type;
   final String errorText;
 
@@ -14,11 +15,13 @@ class MyTextField extends StatelessWidget {
     required this.icon,
     required this.type,
     required this.errorText,
+    this.obscure = false, // Default value for obscure
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
+      obscureText: obscure,
       controller: controller,
       decoration: InputDecoration(
         hintText: hintText,

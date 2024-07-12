@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:location_saver/components/categoryIcon.dart';
 import 'package:location_saver/components/myButton.dart';
 import 'package:location_saver/components/myTextField.dart';
+import 'package:location_saver/pages/authPage.dart';
 import 'package:location_saver/provider/locationsProvider.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -46,6 +47,21 @@ class _LocationsListPageState extends State<LocationsListPage> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not open the map')),
+      );
+    }
+  }
+
+  Future<void> _signOut() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const AuthPage()),
+        (Route<dynamic> route) => false,
+      );
+    } catch (e) {
+      print('Error signing out: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error signing out: $e')),
       );
     }
   }
@@ -182,9 +198,25 @@ class _LocationsListPageState extends State<LocationsListPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Welcome to your saved locations!',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Where do you wanna go today?',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      color: const Color(0xFFf0f5fe),
+                    ),
+                    child: IconButton(
+                      color: Colors.grey,
+                      icon: const Icon(Icons.logout),
+                      onPressed: _signOut,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 10),
               TextField(
@@ -211,6 +243,18 @@ class _LocationsListPageState extends State<LocationsListPage> {
                             _searchController.text.isEmpty
                         ? locationProvider.locations
                         : _filteredLocations;
+                    if (locations.isEmpty) {
+                      return const Center(
+                        child: Text(
+                          'No locations saved',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      );
+                    }
                     return ListView.builder(
                       physics: const BouncingScrollPhysics(),
                       padding: const EdgeInsets.all(0),

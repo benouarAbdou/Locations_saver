@@ -3,6 +3,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:location_saver/pages/authPage.dart';
 import 'package:location_saver/pages/mainpage.dart';
+import 'package:location_saver/provider/locationsProvider.dart';
+import 'package:provider/provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,14 +17,17 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Locations Saver',
-      theme: ThemeData(
-        useMaterial3: false,
-        fontFamily: 'Folks',
+    return ChangeNotifierProvider(
+      create: (context) => LocationProvider(), // Create LocationProvider here
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Locations Saver',
+        theme: ThemeData(
+          useMaterial3: false,
+          fontFamily: 'Folks',
+        ),
+        home: const MyHomePage(),
       ),
-      home: const MyHomePage(),
     );
   }
 }

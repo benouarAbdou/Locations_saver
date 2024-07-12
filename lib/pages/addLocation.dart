@@ -383,21 +383,6 @@ class _AddLocationPageState extends State<AddLocationPage> {
     );
   }
 
-  Future<void> _signOut() async {
-    try {
-      await FirebaseAuth.instance.signOut();
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const AuthPage()),
-        (Route<dynamic> route) => false,
-      );
-    } catch (e) {
-      print('Error signing out: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error signing out: $e')),
-      );
-    }
-  }
-
   void _goToCoordinates() {
     final input = _searchController.text;
     final coordinates = input.split(',');

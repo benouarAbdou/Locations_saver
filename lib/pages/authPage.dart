@@ -4,6 +4,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:location_saver/components/myTextField.dart';
 import 'package:location_saver/pages/addLocation.dart';
+import 'package:location_saver/pages/mainpage.dart';
 
 class AuthPage extends StatefulWidget {
   const AuthPage({super.key});
@@ -47,7 +48,7 @@ class _AuthPageState extends State<AuthPage> {
                   : 'Signed up successfully')),
         );
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const AddLocationPage()),
+          MaterialPageRoute(builder: (context) => const MainPage()),
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -78,7 +79,7 @@ class _AuthPageState extends State<AuthPage> {
                 'Signed in with Google: ${userCredential.user!.displayName}')),
       );
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const AddLocationPage()),
+        MaterialPageRoute(builder: (context) => const MainPage()),
       );
     } catch (e) {
       print('Error signing in with Google: ${e.toString()}');
@@ -121,6 +122,7 @@ class _AuthPageState extends State<AuthPage> {
                   MyTextField(
                     hintText: 'Password',
                     icon: const Icon(Icons.lock_rounded),
+                    obscure: true,
                     type: TextInputType.visiblePassword,
                     errorText: 'Please enter your Password',
                     controller: _passwordController,
