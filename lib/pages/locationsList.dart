@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:location_saver/components/categoryIcon.dart';
 import 'package:location_saver/components/myButton.dart';
@@ -7,6 +6,7 @@ import 'package:location_saver/components/myTextField.dart';
 import 'package:location_saver/pages/authPage.dart';
 import 'package:location_saver/provider/locationsProvider.dart';
 import 'package:provider/provider.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 
@@ -243,61 +243,67 @@ class _LocationsListPageState extends State<LocationsListPage> {
                             _searchController.text.isEmpty
                         ? locationProvider.locations
                         : _filteredLocations;
-                    if (locations.isEmpty) {
-                      return const Center(
-                        child: Text(
-                          'No locations saved',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      );
-                    }
-                    return ListView.builder(
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.all(0),
-                      itemCount: locations.length,
-                      itemBuilder: (context, index) {
-                        final location = locations[index];
-                        return Slidable(
-                          endActionPane: ActionPane(
-                            motion: const ScrollMotion(),
-                            children: [
-                              SlidableAction(
-                                onPressed: (context) =>
-                                    _deleteLocation(location['id']),
-                                backgroundColor: Colors.red,
-                                foregroundColor: Colors.white,
-                                icon: Icons.delete,
-                                label: 'Delete',
+
+                    return Skeletonizer(
+                      enabled: locationProvider.isLoading,
+                      child: locations.isEmpty
+                          ? const Center(
+                              child: Text(
+                                'No locations saved',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey,
+                                ),
                               ),
-                            ],
-                          ),
-                          startActionPane: ActionPane(
-                            motion: const ScrollMotion(),
-                            children: [
-                              SlidableAction(
-                                onPressed: (context) => _editLocation(location),
-                                backgroundColor: Colors.blue,
-                                foregroundColor: Colors.white,
-                                icon: Icons.edit,
-                                label: 'Edit',
-                              ),
-                            ],
-                          ),
-                          child: ListTile(
-                            title: Text(location['name']),
-                            leading: CategoryIcon(
-                                category: location['category'] ?? 'other'),
-                            subtitle: Text(
-                                '${location['latitude'].toStringAsFixed(4)}, ${location['longitude'].toStringAsFixed(4)}'),
-                            onTap: () => _openInGoogleMaps(
-                                location['latitude'], location['longitude']),
-                          ),
-                        );
-                      },
+                            )
+                          : ListView.builder(
+                              physics: const BouncingScrollPhysics(),
+                              padding: const EdgeInsets.all(0),
+                              itemCount: locations.length,
+                              itemBuilder: (context, index) {
+                                final location = locations[index];
+                                return Slidable(
+                                  endActionPane: ActionPane(
+                                    motion: const ScrollMotion(),
+                                    children: [
+                                      SlidableAction(
+                                        onPressed: (context) =>
+                                            _deleteLocation(location['id']),
+                                        backgroundColor: Colors.red,
+                                        foregroundColor: Colors.white,
+                                        icon: Icons.delete,
+                                        label: 'Delete',
+                                      ),
+                                    ],
+                                  ),
+                                  startActionPane: ActionPane(
+                                    motion: const ScrollMotion(),
+                                    children: [
+                                      SlidableAction(
+                                        onPressed: (context) =>
+                                            _editLocation(location),
+                                        backgroundColor: Colors.blue,
+                                        foregroundColor: Colors.white,
+                                        icon: Icons.edit,
+                                        label: 'Edit',
+                                      ),
+                                    ],
+                                  ),
+                                  child: ListTile(
+                                    title: Text(location['name']),
+                                    leading: CategoryIcon(
+                                        category:
+                                            location['category'] ?? 'other'),
+                                    subtitle: Text(
+                                        '${location['latitude'].toStringAsFixed(4)}, ${location['longitude'].toStringAsFixed(4)}'),
+                                    onTap: () => _openInGoogleMaps(
+                                        location['latitude'],
+                                        location['longitude']),
+                                  ),
+                                );
+                              },
+                            ),
                     );
                   },
                 ),

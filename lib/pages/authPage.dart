@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:location_saver/components/myTextField.dart';
-import 'package:location_saver/pages/addLocation.dart';
 import 'package:location_saver/pages/mainpage.dart';
 
 class AuthPage extends StatefulWidget {
